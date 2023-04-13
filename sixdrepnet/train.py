@@ -33,6 +33,8 @@ def parse_args():
     parser.add_argument(
         '--gpu', dest='gpu_id', help='GPU device id to use [0]',
         default=0, type=int)
+    parser.add_argument('--img-size', dest='img_sz', default=224,help="Input image size (default : 224)")
+    parser.add_argument('--model', default='RepVGG-B1g2', help="Using DoF model (default : 'RepVGG-B1g2' )")
     parser.add_argument(
         '--num_epochs', dest='num_epochs',
         help='Maximum number of training epochs.',
@@ -60,6 +62,9 @@ def parse_args():
     parser.add_argument(
         '--snapshot', dest='snapshot', help='Path of model snapshot.',
         default='', type=str)
+    parser.add_argument(
+        '--yolo-norm', action='store_ture', help="use yolo norm (img = img / 255) (default=imagenet normalize)"
+    )
 
     args = parser.parse_args()
     return args
@@ -78,22 +83,37 @@ if __name__ == '__main__':
     cudnn.enabled = True
     num_epochs = args.num_epochs
     batch_size = args.batch_size
+    img_sz = args.img_sz
     gpu = args.gpu_id
     b_scheduler = args.scheduler
+    model_name = args.model
 
     if not os.path.exists('output/snapshots'):
         os.makedirs('output/snapshots')
 
-    summary_name = '{}_{}_bs{}'.format(
-        'SixDRepNet', int(time.time()), args.batch_size)
+    summary_name = '{}_{}_bs{}_{}'.format(
+        'SixDRepNet', int(time.time()), args.batch_size, args.img_sz)
 
     if not os.path.exists('output/snapshots/{}'.format(summary_name)):
         os.makedirs('output/snapshots/{}'.format(summary_name))
 
-    model = SixDRepNet(backbone_name='RepVGG-B1g2',
-                        backbone_file='RepVGG-B1g2-train.pth',
-                        deploy=False,
-                        pretrained=True)
+    if 'RepVGG' in model_name: 
+        print("Using RepVGG model")
+        pretrained_backbone_name= f'{model-name}-train.pth'
+        if os.path.exists(pretrained_backbone_name):
+            print("pretrained backbone file is exists :", pretrained_backbone_name)
+            model = SixDRepNet(backbone_name=model_name,
+                                backbone_file=pretrained_backbone_name,
+                                deploy=False,
+                                pretrained=True)
+        else:
+            model = SixDRepNet(backbone_name=model_name,
+                                backbone_file='',
+                                deploy=False,
+                                pretrained=False)
+    else: # using normal neural network model
+        print("Using Normal model ", model_name)
+         
  
     if not args.snapshot == '':
         saved_state_dict = torch.load(args.snapshot)
@@ -101,13 +121,19 @@ if __name__ == '__main__':
 
     print('Loading data.')
 
-    normalize = transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225])
-
-    transformations = transforms.Compose([transforms.RandomResizedCrop(size=224,scale=(0.8,1)),
-                                          transforms.ToTensor(),
-                                          normalize])
+    if args.yolo_norm:
+        print("use yolo normalize")
+        normalize = None
+        transformations = transforms.Compose([transforms.RandomResizedCrop(size=args.img_sz,scale=(0.8,1)),
+                                          transforms.ToTensor()])
+    else:
+        print("use imagenet normalize")
+        normalize = transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225])
+        transformations = transforms.Compose([transforms.RandomResizedCrop(size=args.img_sz, scale=(0.8,1)),
+                                            transforms.ToTensor(),
+                                            normalize])
 
     pose_dataset = datasets.getDataset(
         args.dataset, args.data_dir, args.filename_list, transformations)

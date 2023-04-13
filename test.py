@@ -6,12 +6,11 @@ import cv2
 # Weights are automatically downloaded
 model = SixDRepNet()
 
-img = cv2.imread('/path/to/image.jpg')
+img = cv2.imread('./image.jpg')
 
 pitch, yaw, roll = model.predict(img)
 
 model.draw_axis(img, yaw, pitch, roll)
 
-cv2.imshow("test_window", img)
-cv2.waitKey(0)
+cv2.imwrite("test_image.jpg", img)
 
