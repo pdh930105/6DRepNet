@@ -1,10 +1,10 @@
 import math
-
 import torch
 from torch import nn
-
 from sixdrepnet.backbone.repvgg import get_RepVGG_func_by_name
 from sixdrepnet import utils
+import timm
+
 
 class SixDRepNet(nn.Module):
     def __init__(self,
@@ -42,7 +42,7 @@ class SixDRepNet(nn.Module):
         x = self.gap(x)
         x = torch.flatten(x, 1)
         x = self.linear_reg(x)
-        return utils.compute_rotation_matrix_from_ortho6d(x)
+        return x
 
 
 class SixDRepNet2(nn.Module):
@@ -106,7 +106,27 @@ class SixDRepNet2(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
 
-        x = self.linear_reg(x)        
-        out = utils.compute_rotation_matrix_from_ortho6d(x)
+        x = self.linear_reg(x)
+        return x
 
-        return out
+
+class SixDofNet(nn.Module):
+    def __init__(self, model_name, pretrained):
+        super(SixDofNet, self).__init__()
+        try:
+            self.net = timm.create_model(model_name, pretrained=pretrained)
+        except:
+            assert False, f"model name ({model_name}) does not support timm model"
+        
+        if 'resnet' in model_name:
+            fea_dim = self.net.fc.in_features
+            self.net.fc = nn.Linear(fea_dim, 6)
+        elif 'mobilenet' in model_name:
+            fea_dim = self.net.classifier.in_features
+            self.net.classifier = nn.Linear(fea_dim, 6)
+        else:
+            assert False, f"SixDofNet support resnet or mobilenet"
+    
+    def forward(self, x):
+        output = self.net(x)
+        return output

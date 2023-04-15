@@ -211,3 +211,57 @@ def get_R(x,y,z):
 
     R = Rz.dot(Ry.dot(Rx))
     return R
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+def calculate_error(R_pred, r_label, cont_labels):    
+        # gt matrix
+        R_gt = r_label
+        yaw_error = pitch_error = roll_error = .0
+        v1_err = v2_err = v3_err = .0
+        count = R_pred.size(0)
+
+        # gt euler
+        y_gt_deg = cont_labels[:, 0].float()*180/np.pi
+        p_gt_deg = cont_labels[:, 1].float()*180/np.pi
+        r_gt_deg = cont_labels[:, 2].float()*180/np.pi
+
+        euler = compute_euler_angles_from_rotation_matrices(
+            R_pred)*180/np.pi
+        p_pred_deg = euler[:, 0].cpu()
+        y_pred_deg = euler[:, 1].cpu()
+        r_pred_deg = euler[:, 2].cpu()
+        
+        """
+        R_pred = R_pred.cpu()
+        v1_err += torch.sum(torch.acos(torch.clamp(
+            torch.sum(R_gt[:, 0] * R_pred[:, 0], 1), -1, 1)) * 180/np.pi)
+        v2_err += torch.sum(torch.acos(torch.clamp(
+            torch.sum(R_gt[:, 1] * R_pred[:, 1], 1), -1, 1)) * 180/np.pi)
+        v3_err += torch.sum(torch.acos(torch.clamp(
+            torch.sum(R_gt[:, 2] * R_pred[:, 2], 1), -1, 1)) * 180/np.pi)
+        """
+        
+        pitch_error += torch.sum(torch.min(torch.stack((torch.abs(p_gt_deg - p_pred_deg), torch.abs(p_pred_deg + 360 - p_gt_deg), torch.abs(
+            p_pred_deg - 360 - p_gt_deg), torch.abs(p_pred_deg + 180 - p_gt_deg), torch.abs(p_pred_deg - 180 - p_gt_deg))), 0)[0])
+        yaw_error += torch.sum(torch.min(torch.stack((torch.abs(y_gt_deg - y_pred_deg), torch.abs(y_pred_deg + 360 - y_gt_deg), torch.abs(
+            y_pred_deg - 360 - y_gt_deg), torch.abs(y_pred_deg + 180 - y_gt_deg), torch.abs(y_pred_deg - 180 - y_gt_deg))), 0)[0])
+        roll_error += torch.sum(torch.min(torch.stack((torch.abs(r_gt_deg - r_pred_deg), torch.abs(r_pred_deg + 360 - r_gt_deg), torch.abs(
+            r_pred_deg - 360 - r_gt_deg), torch.abs(r_pred_deg + 180 - r_gt_deg), torch.abs(r_pred_deg - 180 - r_gt_deg))), 0)[0])
+        
+        return pitch_error / count, yaw_error / count, roll_error / count

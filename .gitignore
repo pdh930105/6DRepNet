@@ -2,3 +2,4 @@ test_image.jpg
 **/**.pyc
 **/**/**.pyc
 .vscode/*
+**/**/output/**
