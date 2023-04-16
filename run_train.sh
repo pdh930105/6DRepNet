@@ -1,0 +1,1 @@
+ python train.py --img-size 112 --dataset AFLW2000 --data-dir /data/dataset/AFLW2000 --filename_list /data/dataset/AFLW2000/files.txt --model 'resnet18'

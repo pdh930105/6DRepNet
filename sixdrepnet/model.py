@@ -1,6 +1,8 @@
 import math
 import torch
 from torch import nn
+import sys
+sys.path.append('../')
 from sixdrepnet.backbone.repvgg import get_RepVGG_func_by_name
 from sixdrepnet import utils
 import timm
