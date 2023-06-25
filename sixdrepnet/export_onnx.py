@@ -27,8 +27,12 @@ if __name__ == '__main__':
     model_path = Path(opt.weights)
     assert model_path.exists(), f"snapshot {opt.weights} does not exist"
 
-    model_name = model_path.parts[-2].split('_')[0]
-    model_train_img_size = int(model_path.parts[-2].split('_')[-1])
+    if '6DRepNet' not in opt.weights:
+        model_name = model_path.parts[-2].split('_')[0]
+    else:
+        model_name = 'RepVGG-B1g2' # used official weight
+    
+    model_train_img_size = int(model_path.parts[-2].split('_')[-1]) if '6DRepNet' not in opt.weights  else 224
     assert model_train_img_size == opt.img_size, f"does not same train model img size {model_train_img_size} != {opt.img_size}"
     output_names = ['output']
     print("model name : ", model_name)
@@ -36,16 +40,17 @@ if __name__ == '__main__':
         opt.output_onnx = f'{model_name}_dof.onnx'
 
     model_checkpoint = torch.load(model_path)
-
+    print(model_checkpoint)
     if 'RepVGG' in model_name:
         model = SixDRepNet(backbone_name=model_name,
                                     backbone_file='',
                                     deploy=False,
                                     pretrained=False)
         print('load model :', model_path)
-        model.load_state_dict(model_checkpoint['model_state_dict'])
         print('Converting RepVGG model for inference')
         model = repvgg_model_convert(model, save_path=None)
+        model.load_state_dict(model_checkpoint)
+        
         print('Done.')
 
     else:
